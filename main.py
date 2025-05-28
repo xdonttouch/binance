@@ -132,11 +132,18 @@ def get_usdt_pairs():
     try:
         res = requests.get(f"{BASE_URL}/api/v3/exchangeInfo", timeout=10)
         data = res.json()
+
+        # ⛔ Deteksi error lebih awal
+        if "symbols" not in data:
+            print(f"❌ Binance response tidak valid:\n{data}")
+            return []
+
         pairs = [
             s['symbol'] for s in data['symbols']
             if s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING' and s['isSpotTradingAllowed']
         ]
         return pairs
+
     except Exception as e:
         print(f"⚠️ Gagal ambil daftar pair: {e}")
         return []
@@ -144,9 +151,14 @@ def get_usdt_pairs():
 # === LOOP TIAP 15 MENIT ===
 def run_bot():
     while True:
-        symbols = get_usdt_pairs()
-        print(f"\n📊 Mulai scan {len(symbols)} pair... ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
-        for symbol in symbols:
+        for _ in range(3):
+            pairs = get_usdt_pairs()
+            if pairs:
+                break
+            time.sleep(3)
+        
+        print(f"\n📊 Mulai scan {len(pairs)} pair... ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+        for symbol in pairs:
             analyze_pair(symbol)
             time.sleep(0.1)
 
