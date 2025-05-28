@@ -4,7 +4,22 @@ import json
 import os
 from datetime import datetime
 import pandas as pd
+from flask import Flask
+import threading
 
+# === Flask setup biar Render gak spin-down ===
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "✅ Binance breakout bot is running."
+
+def run_flask():
+    app.run(host='0.0.0.0', port=10000)
+
+threading.Thread(target=run_flask).start()
+
+# === Bot logic di bawah sini ===
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 BASE_URL = "https://api.binance.com"
@@ -72,31 +87,26 @@ def analyze_pair(symbol):
         last = df.iloc[-1]
         prev = df.iloc[-2]
 
-        # === Ambil volume 24 jam dari Binance ===
         vol_url = f"{BASE_URL}/api/v3/ticker/24hr?symbol={symbol}"
         vol_data = requests.get(vol_url).json()
         volume_usd = float(vol_data['quoteVolume'])
 
-        # === Skip coin jika volume terlalu kecil ===
         if volume_usd < 500_000:
             print(f"⚠️ Skip {symbol} (volume 24h cuma ${volume_usd:,.0f})")
             return
 
-        # Hitung base range konsolidasi 5 candle sebelum candle sebelumnya
         base_high = df['high'].iloc[-6:-1].max()
         base_low = df['low'].iloc[-6:-1].min()
         base_range_pct = (base_high - base_low) / base_low * 100
 
         today = datetime.now().strftime('%Y-%m-%d')
         if alert_log.get(symbol) == today:
-            return  # Sudah dikirimi alert hari ini
+            return
 
-        # Hitung validasi breakout kuat
         body_pct = (last['close'] - last['open']) / last['open'] * 100
         body_vs_wick = (last['close'] - last['open']) > (last['high'] - last['low']) * 0.25
         strong_breakout = body_pct > 1.2 and body_vs_wick
 
-        # Syarat breakout biasa
         breakout_valid = (
             prev['rsi14'] <= 60 and
             last['rsi14'] > 60 and last['rsi14'] < 70 and
@@ -141,7 +151,6 @@ while True:
         analyze_pair(symbol)
         time.sleep(0.1)
 
-    # Simpan log setelah satu siklus
     with open(LOG_FILE, "w") as f:
         json.dump(alert_log, f)
 
