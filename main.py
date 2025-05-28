@@ -144,15 +144,20 @@ def get_usdt_pairs():
         return []
 
 # === LOOP TIAP 15 MENIT ===
-while True:
-    symbols = get_usdt_pairs()
-    print(f"\n📊 Mulai scan {len(symbols)} pair... ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    for symbol in symbols:
-        analyze_pair(symbol)
-        time.sleep(0.1)
+def run_bot():
+    while True:
+        symbols = get_usdt_pairs()
+        print(f"\n📊 Mulai scan {len(symbols)} pair... ⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
+        for symbol in symbols:
+            analyze_pair(symbol)
+            time.sleep(0.1)
 
-    with open(LOG_FILE, "w") as f:
-        json.dump(alert_log, f)
+        with open(LOG_FILE, "w") as f:
+            json.dump(alert_log, f)
 
-    print("⏳ Tunggu 15 menit...\n")
-    time.sleep(15 * 60)
+        print("⏳ Tunggu 15 menit...\n", flush=True)
+        time.sleep(15 * 60)
+
+# ⬇️ INI DI LUAR, bukan di dalam run_bot
+threading.Thread(target=run_flask).start()
+threading.Thread(target=run_bot).start()
